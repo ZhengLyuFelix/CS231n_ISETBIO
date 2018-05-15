@@ -23,13 +23,15 @@ duration = 0.1;
 % finding a (constant) approximation for isomerization rate 
 % with stimulus
 idx = (labels == 1);
-temp = double(reshape(samplesTemp(:,:,idx),[],1));
-isoRate_c1 = (sum(temp)/length(temp))/timeInterval;
+%temp = double(reshape(samplesTemp(:,:,idx),[],1));
+%isoRate_c1 = (sum(temp)/length(temp))/timeInterval;
+isoRate_c1 = reshape(double(sum(samplesTemp(:,:,idx),3)/sum(idx)),[],1)/timeInterval;
 
 % without stimulus
 idx = (labels == 0);
-temp = double(reshape(samplesTemp(:,:,idx),[],1));
-isoRate_c0 = (sum(temp)/length(temp))/timeInterval;
+%temp = double(reshape(samplesTemp(:,:,idx),[],1));
+%isoRate_c0 = (sum(temp)/length(temp))/timeInterval;
+isoRate_c0 = reshape(double(sum(samplesTemp(:,:,idx),3)/sum(idx)),[],1)/timeInterval;
 
 
 %% Comparing likelihoods to find if there was stimulus or not
@@ -61,7 +63,7 @@ end
 predicted_labels = (difference>0);
 accuracy = sum(predicted_labels == labels)/length(labels);
 
-
+fprintf('training accuracy = %d / %d \n',sum(predicted_labels == labels),length(labels) )
 
 
 
