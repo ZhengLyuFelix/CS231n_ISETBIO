@@ -15,12 +15,9 @@ freqRange      = [0 30];
 contrastRange  = [0 1]; 
 nImages = 1000; % For each data point, we generate two images, one with the harmonic and one without.
 
-% Whether to use realistic human optics aberrations
-aberrFlag = false;
-
 % Save the generated data?
 saveFlag = true;
-
+saveName = 'sampleSet';
 % accuracy = zeros(numel(scanFreq), numel(scanContrast));
 
 %% Set up the stimulus parameters
@@ -59,7 +56,7 @@ zCoeffs = VirtualEyes(nImages,measPupilMM);
 %% Generate images
 
 samplesTemp = zeros(156,156,2*nImages);
-groundTruth = zeros(80,80,2*nImages);
+samplesNoNoise = zeros(156,156,2*nImages);
 labels = zeros(2*nImages,1);
 contrasts = zeros(2*nImages,1);
 freqs = zeros(2*nImages,1);
@@ -113,12 +110,13 @@ for ii = 1 : nImages
     labels(k) = 1;
     contrasts(k) = scanContrast(ii);
     freqs(k) = scanFreq(ii);
-    % groundTruth(:,:,k) = oiGet(ois.oiModulated,'illuminance');
+
+    % Calculate without noise
+    cm.noiseFlag = 'none';
+    samplesNoNoise(:,:,k) = mean(squeeze(cm.compute(ois)), 3);
+    
     k = k + 1;
-    
-    % vcNewGraphWin; imagesc(samplesTemp(:,:,k)); colormap(gray);
-    
-    
+
     %% Create a "blank" pattern without stimulus
     hparams(2).contrast  = 0.0;
     ois = oisCreate('harmonic', 'blend', stimWeights, ...
@@ -137,14 +135,16 @@ end
 
 %% Crop
 samplesCrop = samplesTemp(1:128,1:128,:);
-
+samplesNoNoiseCrop = samplesNoNoise(1:128,1:128,:);
 %% Save everything
 
 if(saveFlag)
 currDate = datestr(now,'mm-dd-yy_HH_MM');    
-save(sprintf('sampleSet_%s.mat',currDate),...
+save(sprintf('%s_%s.mat',saveName,currDate),...
     'samplesTemp',...
     'samplesCrop',...
+    'samplesNoNoise',...
+    'samplesNoNoiseCrop',...
     'labels',...
     'contrasts',...
     'freqs');
@@ -162,6 +162,7 @@ k = 1;
 for ii = 1:n
     subplot(4,4,k);
     imagesc(dataSamp(:,:,ii));
+    axis image; axis off; 
     title(sprintf('label = %i \n c = %0.2f | f = %0.2f',...
         labelSamp(ii),contrastSamp(ii),freqSamp(ii)))
     k = k+1;
