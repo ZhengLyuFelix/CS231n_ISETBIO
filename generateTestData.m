@@ -24,7 +24,7 @@ hparams(2).contrast  = sContrast;
 hparams(1)           = hparams(2);
 hparams(1).contrast  = 0;
 
-sparams.fov = 1;
+sparams.fov = 1.5;
 
 nTimeSteps = 20;
 stimWeights = ones(1, nTimeSteps);
@@ -42,8 +42,8 @@ nTrials    = 100;
 rng(1); % Set the random seed
 
 % Scan for test set
-scanFreq = logspace(0, 1.5, 10);
-scanContrast = logspace(-3.5, 0, 10);
+scanFreq = logspace(0.3, 1.5, 5);
+scanContrast = logspace(-3.5, -1, 10);
 numSamples = 10;
 
 nImages = length(scanFreq)*length(scanContrast)*numSamples;
@@ -55,11 +55,11 @@ zCoeffs = VirtualEyes(nImages,measPupilMM);
 
 %% Generate images
 
-testTemp = zeros(156,156,2*nImages);
-testNoNoise = zeros(156,156,2*nImages);
-labels = zeros(2*nImages,1);
-contrasts = zeros(2*nImages,1);
-freqs = zeros(2*nImages,1);
+testTemp = zeros(249,249,2*nImages);
+testNoNoise = zeros(249,249,2*nImages);
+testLabels = zeros(2*nImages,1);
+testContrasts = zeros(2*nImages,1);
+testFreqs = zeros(2*nImages,1);
 
 k = 1;
 ii = 1;
@@ -75,21 +75,21 @@ for ff = 1 : length(scanFreq)
             %% Create the oi with aberrations
             
             %z = zeros(65,1);
-            z(1:13) = zCoeffs(ii,1:13);
-            ii = ii + 1;
-                        
-            % Create the example subject
-            sbjWvf = wvfCreate;                                     % Initialize
-            sbjWvf = wvfSet(sbjWvf,'zcoeffs',z);                    % Zernike
-            sbjWvf = wvfSet(sbjWvf,'measured pupil',measPupilMM);   % Data
-            sbjWvf = wvfSet(sbjWvf,'calculated pupil',calcPupilMM); % What we calculate
-            sbjWvf = wvfSet(sbjWvf,'measured wavelength',550);
-            sbjWvf = wvfSet(sbjWvf,'calc wave',[450:10:650]');            % Must be a column vector
-            sbjWvf = wvfComputePSF(sbjWvf);
-            oi = wvf2oi(sbjWvf);
+%             z(1:13) = zCoeffs(ii,1:13);
+             ii = ii + 1;
+%                         
+%             % Create the example subject
+%             sbjWvf = wvfCreate;                                     % Initialize
+%             sbjWvf = wvfSet(sbjWvf,'zcoeffs',z);                    % Zernike
+%             sbjWvf = wvfSet(sbjWvf,'measured pupil',measPupilMM);   % Data
+%             sbjWvf = wvfSet(sbjWvf,'calculated pupil',calcPupilMM); % What we calculate
+%             sbjWvf = wvfSet(sbjWvf,'measured wavelength',550);
+%             sbjWvf = wvfSet(sbjWvf,'calc wave',[450:10:650]');            % Must be a column vector
+%             sbjWvf = wvfComputePSF(sbjWvf);
+%             oi = wvf2oi(sbjWvf);
             
             % Default
-            %     oi = oiCreate('wvf human');
+            oi = oiCreate('wvf human');
             
             %% Create the OIS
             
@@ -110,9 +110,9 @@ for ff = 1 : length(scanFreq)
             
             cm.noiseFlag = 'random';
             testTemp(:,:,k) = mean(squeeze(cm.compute(ois)), 3);
-            labels(k) = 1;
-            contrasts(k) = scanContrast(cc);
-            freqs(k) = scanFreq(ff);
+            testLabels(k) = 1;
+            testContrasts(k) = scanContrast(cc);
+            testFreqs(k) = scanFreq(ff);
             
             % Calculate without noise
             cm.noiseFlag = 'none';
@@ -121,8 +121,6 @@ for ff = 1 : length(scanFreq)
             k = k + 1;
             
             %% Create a "blank" pattern without stimulus
-            % No need for blank pattern in test set
-            %{
             hparams(2).contrast  = 0.0;
             ois = oisCreate('harmonic', 'blend', stimWeights, ...
                 'testParameters', hparams, 'sceneParameters', sparams,...
@@ -130,42 +128,40 @@ for ff = 1 : length(scanFreq)
             % ois.visualize('movie illuminance');
             
             cm.noiseFlag = 'random';
-            samplesTemp(:,:,k) = mean(squeeze(cm.compute(ois)), 3);
-            labels(k) = 0;
-            contrasts(k) = 0;
-            freqs(k) = 0;
+            testTemp(:,:,k) = mean(squeeze(cm.compute(ois)), 3);
+            testLabels(k) = 0;
+            testContrasts(k) = scanContrast(cc);
+            testFreqs(k) = scanFreq(ff);
             k = k+1;
-            %}
+            
 
         end
     end
 end
 
 %% Crop
-testCrop = testTemp(1:128,1:128,:);
-testNoNoiseCrop = testNoNoise(1:128,1:128,:);
+testImages = testTemp(1:224,1:224,:);
+testImages_NoNoise = testNoNoise(1:224,1:224,:);
 %% Save everything
 
 if(saveFlag)
     currDate = datestr(now,'mm-dd-yy_HH_MM');
     save(sprintf('%s_%s.mat',saveName,currDate),...
-        'testTemp',...
-        'testCrop',...
-        'testNoNoise',...
-        'testNoNoiseCrop',...
-        'labels',...
-        'contrasts',...
-        'freqs');
+        'testImages',...
+        'testImages_NoNoise',...
+        'testLabels',...
+        'testContrasts',...
+        'testFreqs');
 end
 
 %% Display a random sampling of images
 
 n = 16;
 figure(1);
-[dataSamp,idx] = datasample(testTemp,n,3);
-labelSamp = labels(idx);
-contrastSamp = contrasts(idx);
-freqSamp = freqs(idx);
+[dataSamp,idx] = datasample(testImages,n,3);
+labelSamp = testLabels(idx);
+contrastSamp = testContrasts(idx);
+freqSamp = testFreqs(idx);
 k = 1;
 for ii = 1:n
     subplot(4,4,k);
@@ -174,4 +170,35 @@ for ii = 1:n
     title(sprintf('label = %i \n c = %0.2f | f = %0.2f',...
         labelSamp(ii),contrastSamp(ii),freqSamp(ii)))
     k = k+1;
+end
+
+%% Generate range
+
+unique_c = unique(testContrasts);
+unique_c = unique_c(2:2:end);
+unique_f = unique(testFreqs);
+N = length(unique_c);
+M = length(unique_f);
+
+figure;
+k = 1;
+for cc = 1:length(unique_c)
+    for ff = 1:length(unique_f)
+        
+        curr_c = unique_c(cc);
+        curr_f = unique_f(ff);
+        
+        subplot(N,M,k)
+        curr_i = ((testContrasts == curr_c) & ...
+            (testLabels == 1) & ...
+            (testFreqs == curr_f));
+        curr_i = find(curr_i == 1); % Choose the first image
+        curr_i = curr_i(1);
+        curr_image = testImages(:,:,curr_i);
+        imagesc(curr_image);
+        axis image; axis off;
+        title(sprintf('label = %i \n c = %0.2f | f = %0.2f',...
+            testLabels(curr_i),testContrasts(curr_i),testFreqs(curr_i)))
+        k = k +1;
+    end
 end

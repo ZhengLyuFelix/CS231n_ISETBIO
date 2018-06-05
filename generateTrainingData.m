@@ -11,9 +11,9 @@ nPCs          = 2;
 fov           = 1;
 sContrast     = 1;
 
-freqRange      = [0 30]; 
-contrastRange  = [0 1]; 
-nImages = 1000; % For each data point, we generate two images, one with the harmonic and one without.
+freqRange      = [0.1, 1.5441]; % log space
+contrastRange  = [-3.5, -1]; % log space
+nImages = 3000; % For each data point, we generate two images, one with the harmonic and one without.
 
 % Save the generated data?
 saveFlag = true;
@@ -28,7 +28,7 @@ hparams(2).contrast  = sContrast;
 hparams(1)           = hparams(2);
 hparams(1).contrast  = 0;
 
-sparams.fov = 1;
+sparams.fov = 1.5;
 
 nTimeSteps = 20;
 stimWeights = ones(1, nTimeSteps);
@@ -45,8 +45,10 @@ nTrials    = 100;
 % aberrations
 rng(1); % Set the random seed
 
-scanFreq = (freqRange(2)-freqRange(1)).*rand(nImages,1) + freqRange(1);
-scanContrast = (contrastRange(2)-contrastRange(1)).*rand(nImages,1) + contrastRange(1);
+% Sample in log space
+
+scanFreq = 10.^((freqRange(2)-freqRange(1)).*rand(nImages,1) + freqRange(1));
+scanContrast = 10.^((contrastRange(2)-contrastRange(1)).*rand(nImages,1) + contrastRange(1));
 
 % Aberrations
 measPupilMM = 4.5; % 4.5 mm pupil size (Thibos data)
@@ -55,11 +57,11 @@ zCoeffs = VirtualEyes(nImages,measPupilMM);
 
 %% Generate images
 
-samplesTemp = zeros(156,156,2*nImages);
-samplesNoNoise = zeros(156,156,2*nImages);
-labels = zeros(2*nImages,1);
-contrasts = zeros(2*nImages,1);
-freqs = zeros(2*nImages,1);
+samplesTemp = zeros(249,249,2*nImages);
+samplesNoNoise = zeros(249,249,2*nImages);
+trainLabels = zeros(2*nImages,1);
+trainContrasts = zeros(2*nImages,1);
+trainFreqs = zeros(2*nImages,1);
 
 k = 1;
 
@@ -107,9 +109,9 @@ for ii = 1 : nImages
 
     cm.noiseFlag = 'random';
     samplesTemp(:,:,k) = mean(squeeze(cm.compute(ois)), 3);
-    labels(k) = 1;
-    contrasts(k) = scanContrast(ii);
-    freqs(k) = scanFreq(ii);
+    trainLabels(k) = 1;
+    trainContrasts(k) = scanContrast(ii);
+    trainFreqs(k) = scanFreq(ii);
 
     % Calculate without noise
     cm.noiseFlag = 'none';
@@ -126,44 +128,44 @@ for ii = 1 : nImages
 
     cm.noiseFlag = 'random';
     samplesTemp(:,:,k) = mean(squeeze(cm.compute(ois)), 3);
-    labels(k) = 0;
-    contrasts(k) = 0;
-    freqs(k) = 0;
+    trainLabels(k) = 0;
+    trainContrasts(k) = 0;
+    trainFreqs(k) = 0;
     k = k+1;
     
 end
 
 %% Crop
-samplesCrop = samplesTemp(1:128,1:128,:);
-samplesNoNoiseCrop = samplesNoNoise(1:128,1:128,:);
+trainImages = samplesTemp(1:224,1:224,:);
+trainImages_NoNoise = samplesNoNoise(1:224,1:224,:);
 %% Save everything
 
 if(saveFlag)
 currDate = datestr(now,'mm-dd-yy_HH_MM');    
 save(sprintf('%s_%s.mat',saveName,currDate),...
-    'samplesTemp',...
-    'samplesCrop',...
-    'samplesNoNoise',...
-    'samplesNoNoiseCrop',...
-    'labels',...
-    'contrasts',...
-    'freqs');
+    'trainImages',...
+    'trainImages_NoNoise',...
+    'trainLabels',...
+    'trainContrasts',...
+    'trainFreqs',...
+    '-v7.3');
 end
 
 %% Display a random sampling of images
 
 n = 16;
 figure(1);
-[dataSamp,idx] = datasample(samplesTemp,n,3);
-labelSamp = labels(idx);
-contrastSamp = contrasts(idx);
-freqSamp = freqs(idx);
+[dataSamp,idx] = datasample(trainImages,n,3);
+labelSamp = trainLabels(idx);
+contrastSamp = trainContrasts(idx);
+freqSamp = trainFreqs(idx);
 k = 1;
 for ii = 1:n
     subplot(4,4,k);
     imagesc(dataSamp(:,:,ii));
     axis image; axis off; 
-    title(sprintf('label = %i \n c = %0.2f | f = %0.2f',...
+    title(sprintf('label = %i \n c = %0.4f \n | f = %0.2f',...
         labelSamp(ii),contrastSamp(ii),freqSamp(ii)))
     k = k+1;
 end
+
